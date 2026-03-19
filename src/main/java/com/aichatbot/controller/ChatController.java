@@ -34,7 +34,8 @@ public class ChatController {
             session.setAttribute("messages", new ArrayList<Map<String, String>>());
         }
         model.addAttribute("aiTypes", List.of(
-            "Google Gemini (무료)"
+            "Google Gemini (무료)",
+            "OpenAI ChatGPT"
         ));
         model.addAttribute("geminiModels", List.of(
             "gemini-pro",
@@ -42,9 +43,9 @@ public class ChatController {
             "gemini-1.5-pro"
         ));
         model.addAttribute("openaiModels", List.of(
-            "gpt-3.5-turbo",
-            "gpt-4",
-            "gpt-4-turbo-preview"
+            "gpt-4o-mini",
+            "gpt-4o",
+            "gpt-4.1-mini"
         ));
         return "index";
     }

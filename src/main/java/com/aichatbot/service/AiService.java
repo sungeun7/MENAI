@@ -168,18 +168,31 @@ public class AiService {
 
             // API 키에 특수 문자가 포함되어 있는지 확인 (에러 메시지가 키로 들어간 경우 방지)
             if (apiKey.contains("❌") || apiKey.contains("오류") || apiKey.contains("해결 방법") ||
-                apiKey.contains("API 할당량") || apiKey.contains("상태 코드")) {
-                return "❌ API 키가 올바르지 않습니다. API 키 입력란에 오류 메시지가 포함되어 있습니다.\n\n" +
-                       "올바른 API 키를 입력하세요: https://aistudio.google.com/app/apikey\n\n" +
-                       "💡 API 키는 'AIza'로 시작하는 긴 문자열입니다.";
+                apiKey.contains("API 할당량") || apiKey.contains("상태 코드") ||
+                apiKey.contains("::") || apiKey.contains("Spring") || apiKey.contains("INFO") ||
+                apiKey.contains("ERROR") || apiKey.contains("WARN") || apiKey.contains("DEBUG") ||
+                apiKey.contains("로그") || apiKey.contains("log") || apiKey.contains("Log")) {
+                return "❌ API 키가 올바르지 않습니다. API 키 입력란에 오류 메시지나 로그가 포함되어 있습니다.\n\n" +
+                       "💡 해결 방법:\n" +
+                       "1. API 키 입력란을 완전히 비우세요\n" +
+                       "2. [Google AI Studio](https://aistudio.google.com/app/apikey)에서 새 API 키를 발급받으세요\n" +
+                       "3. API 키만 복사해서 붙여넣으세요 (다른 텍스트는 포함하지 마세요)\n\n" +
+                       "✅ 올바른 API 키 형식:\n" +
+                       "   • 'AIza'로 시작하는 긴 문자열\n" +
+                       "   • 보통 39자 정도\n" +
+                       "   • 예: AIzaSy... (나머지 35자)";
             }
 
             // API 키 형식 확인 (Gemini API 키는 보통 'AIza'로 시작)
-            // 하지만 일부 키는 다른 형식일 수 있으므로 경고만 표시
             if (!apiKey.startsWith("AIza")) {
-                // 경고만 표시하고 계속 진행 (일부 키는 다른 형식일 수 있음)
-                System.err.println("경고: API 키가 'AIza'로 시작하지 않습니다. 키 앞부분: " +
-                    apiKey.substring(0, Math.min(10, apiKey.length())));
+                return "❌ API 키 형식이 올바르지 않습니다.\n\n" +
+                       "Gemini API 키는 'AIza'로 시작해야 합니다.\n" +
+                       "현재 입력된 키 앞부분: " + apiKey.substring(0, Math.min(20, apiKey.length())) + "...\n\n" +
+                       "💡 해결 방법:\n" +
+                       "1. API 키 입력란을 완전히 비우세요\n" +
+                       "2. [Google AI Studio](https://aistudio.google.com/app/apikey)에서 새 API 키를 발급받으세요\n" +
+                       "3. API 키만 복사해서 붙여넣으세요\n\n" +
+                       "✅ 올바른 API 키는 'AIza'로 시작하는 39자 정도의 문자열입니다.";
             }
 
             // 모델 이름 유효성 검사
@@ -460,6 +473,40 @@ public class AiService {
                                      "   • 또는 다른 AI 서비스 사용 고려";
                 }
 
+                // 재시도 시간이 60초 이하면 자동 재시도
+                if (isTemporaryQuotaExceeded && retrySeconds > 0 && retrySeconds <= 60) {
+                    try {
+                        System.out.println("[재시도] 할당량 초과로 인한 재시도 대기 중... (" + retrySeconds + "초)");
+                        Thread.sleep((retrySeconds + 1) * 1000L); // 재시도 시간 + 1초 여유
+                        System.out.println("[재시도] 재시도 시작...");
+                        
+                        // 재시도 (한 번만)
+                        HttpResponse<String> retryResponse = client.send(request, HttpResponse.BodyHandlers.ofString());
+                        if (retryResponse.statusCode() == 200) {
+                            JsonNode result = objectMapper.readTree(retryResponse.body());
+                            if (result.has("candidates") && result.get("candidates").size() > 0) {
+                                JsonNode candidate = result.get("candidates").get(0);
+                                if (candidate.has("content") && candidate.get("content").has("parts")) {
+                                    System.out.println("[재시도] 성공!");
+                                    return candidate.get("content").get("parts").get(0).get("text").asText();
+                                }
+                            }
+                        } else if (retryResponse.statusCode() == 429) {
+                            // 재시도해도 여전히 429 에러
+                            System.out.println("[재시도] 재시도 후에도 할당량 초과 지속");
+                            return "❌ API 할당량 초과 (상태 코드: 429)\n\n" +
+                                   "재시도 후에도 할당량 초과가 지속됩니다.\n\n" +
+                                   quotaMessage +
+                                   (retryAfter.isEmpty() ? "" : "⏰ 재시도 시간: 약 " + retryAfter + " 후\n\n") +
+                                   solutionMessage;
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } catch (Exception e) {
+                        System.err.println("[재시도] 재시도 중 오류: " + e.getMessage());
+                    }
+                }
+                
                 return "❌ API 할당량 초과 (상태 코드: 429)\n\n" +
                        quotaMessage +
                        (retryAfter.isEmpty() ? "" : "⏰ 재시도 시간: 약 " + retryAfter + " 후\n\n") +
@@ -506,6 +553,9 @@ public class AiService {
             }
 
             String apiUrl = "https://api.openai.com/v1/chat/completions";
+            if (model == null || model.trim().isEmpty()) {
+                model = "gpt-4o-mini";
+            }
 
             List<Map<String, String>> messages = new ArrayList<>();
             Map<String, String> systemMsg = new HashMap<>();
@@ -520,7 +570,7 @@ public class AiService {
             messages.add(userMsg);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", model);
+            requestBody.put("model", model.trim());
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
             requestBody.put("max_tokens", 1000);

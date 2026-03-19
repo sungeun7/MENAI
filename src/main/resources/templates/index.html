@@ -322,14 +322,15 @@
         <div class="sidebar">
             <h2>⚙️ 설정</h2>
 
-            <div class="section hidden">
+            <div class="section">
                 <label>AI 타입 선택</label>
                 <select id="aiType" title="AI 타입 선택" onchange="updateAiSettings()">
-                    <option value="Google Gemini" selected>Google Gemini</option>
+                    <option value="Google Gemini">Google Gemini</option>
+                    <option value="OpenAI ChatGPT" selected>OpenAI ChatGPT</option>
                 </select>
             </div>
 
-            <div class="section" id="geminiSection">
+            <div class="section hidden" id="geminiSection">
                 <label>Gemini 모델 선택</label>
                 <select id="geminiModel" title="Gemini 모델 선택">
                     <option value="gemini-pro">gemini-pro</option>
@@ -337,10 +338,25 @@
                     <option value="gemini-1.5-pro">gemini-1.5-pro</option>
                 </select>
                 <label class="label-spacing">Gemini API 키</label>
-                <input type="password" id="geminiApiKey" placeholder="API 키를 입력하세요" title="Gemini API 키" value="AIzaSyBHhFyXxCoOAU_BdMoPib2SO-mHA2z_1SA">
+                <input type="password" id="geminiApiKey" placeholder="API 키를 입력하세요" title="Gemini API 키" value="">
                 <div class="info-box warning-info-box">
                     <small>🔑 API 키 발급: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a></small><br>
                     <small>✅ 무료로 사용 가능합니다</small>
+                </div>
+            </div>
+
+            <div class="section" id="openaiSection">
+                <label>OpenAI 모델 선택</label>
+                <select id="openaiModel" title="OpenAI 모델 선택">
+                    <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                </select>
+                <label class="label-spacing">OpenAI API 키</label>
+                <input type="password" id="openaiApiKey" placeholder="sk-... API 키를 입력하세요" title="OpenAI API 키" value="">
+                <div class="info-box warning-info-box">
+                    <small>🔑 API 키 발급: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a></small><br>
+                    <small>💳 과금/크레딧 정책은 계정 상태에 따라 달라질 수 있습니다</small>
                 </div>
             </div>
 
@@ -380,10 +396,22 @@
     <script>
         // AI 설정 업데이트 함수
         function updateAiSettings() {
-            // Gemini로 고정
+            const aiType = document.getElementById('aiType').value;
+            const geminiSection = document.getElementById('geminiSection');
+            const openaiSection = document.getElementById('openaiSection');
             const statusDiv = document.getElementById('modelStatus');
-            statusDiv.className = 'model-status ready show';
-            statusDiv.textContent = '✅ Gemini 준비됨';
+
+            if (aiType.includes('OpenAI')) {
+                geminiSection.classList.add('hidden');
+                openaiSection.classList.remove('hidden');
+                statusDiv.className = 'model-status ready show';
+                statusDiv.textContent = '✅ OpenAI 준비됨';
+            } else {
+                geminiSection.classList.remove('hidden');
+                openaiSection.classList.add('hidden');
+                statusDiv.className = 'model-status ready show';
+                statusDiv.textContent = '✅ Gemini 준비됨';
+            }
         }
 
 
@@ -529,11 +557,13 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        aiType: 'Google Gemini (무료)',
+                        aiType: document.getElementById('aiType').value,
                         prompt: prompt,
-                        model: document.getElementById('geminiModel') ? document.getElementById('geminiModel').value : 'gemini-pro',
+                        model: document.getElementById('aiType').value.includes('OpenAI')
+                            ? (document.getElementById('openaiModel') ? document.getElementById('openaiModel').value : 'gpt-4o-mini')
+                            : (document.getElementById('geminiModel') ? document.getElementById('geminiModel').value : 'gemini-pro'),
                         geminiApiKey: document.getElementById('geminiApiKey') ? document.getElementById('geminiApiKey').value : '',
-                        openaiApiKey: '',
+                        openaiApiKey: document.getElementById('openaiApiKey') ? document.getElementById('openaiApiKey').value : '',
                         temperature: parseFloat(document.getElementById('temperature').value)
                     })
                 }),
@@ -666,6 +696,20 @@
                     // 로딩 중
                     statusDiv.className = 'model-status loading show';
                     statusDiv.textContent = '⏳ 모델 로딩 중...';
+                } else if (message.includes('API 키가 올바르지 않습니다') && message.includes('오류 메시지가 포함되어 있습니다')) {
+                    // API 키 입력란에 오류 메시지가 포함된 경우 입력란 초기화
+                    const apiKeyInput = document.getElementById('geminiApiKey');
+                    if (apiKeyInput) {
+                        apiKeyInput.value = '';
+                        apiKeyInput.placeholder = 'API 키를 입력하세요 (오류 메시지 제거됨)';
+                        setTimeout(() => {
+                            apiKeyInput.placeholder = 'API 키를 입력하세요';
+                        }, 3000);
+                    }
+                    statusDiv.className = 'model-status error show';
+                    statusDiv.textContent = '❌ API 키 오류';
+                    addMessage('assistant', message);
+                    return;
                 } else if (message.includes('❌') || message.includes('오류') || message.includes('실패')) {
                     // 오류
                     statusDiv.className = 'model-status loading show';
@@ -702,7 +746,7 @@
                     isRetrying = false;
                 }
                 const statusDiv = document.getElementById('modelStatus');
-                // 무료 AI 챗봇만 사용
+                // 선택한 AI 타입 공통 오류 처리
 
                 statusDiv.className = 'model-status loading show';
                 statusDiv.textContent = '⚠️ 연결 실패';
@@ -710,7 +754,7 @@
                 let errorMessage = '';
                 if (error.message === '요청 시간 초과' || error.message.includes('timeout')) {
                     errorMessage = '⏳ 요청 시간이 초과되었습니다.\n\n' +
-                        '공개 무료 모델은 로딩 시간이 필요합니다.\n\n' +
+                        '모델 연결에 시간이 더 필요합니다.\n\n' +
                         '💡 해결 방법:\n' +
                         '1. ⏰ 1-2분 후 다시 시도 (모델 로딩 완료 대기)\n' +
                         '2. 🔄 페이지 새로고침 후 다시 시도\n' +
@@ -737,7 +781,7 @@
         }
 
         function getSelectedModel() {
-            // 무료 AI 챗봇만 사용하므로 모델 선택 불필요
+            // 현재는 요청 직전에 모델을 직접 선택해서 사용함
             return '';
         }
 

@@ -35,3 +35,14 @@ build/
 .DS_Store
 Thumbs.db
 
+### API Keys ###
+*.key
+*.keys
+*api-key*
+*apikey*
+*API_KEY*
+*APIKEY*
+.env
+.env.local
+config.properties
+application-local.properties

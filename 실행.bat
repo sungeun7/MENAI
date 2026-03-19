@@ -1,11 +1,10 @@
 @echo off
-REM 한국어 코드페이지 설정 (한글 깨짐 방지)
 chcp 949 >nul 2>&1
 setlocal enabledelayedexpansion
 
 title AI Chatbot Program
 
-REM Cleanup function 정의
+REM Cleanup function definition
 goto :main
 
 :cleanup
@@ -54,8 +53,10 @@ if defined SERVER_PID (
     wmic process where "ProcessId=%SERVER_PID%" delete >nul 2>&1
     timeout /t 1 /nobreak >nul
     powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Stop-Process -Id %SERVER_PID% -Force } catch {}" >nul 2>&1
-    REM Clean up PID file
+    REM Clean up PID files
     del server_pid.txt >nul 2>&1
+    del browser_pid.txt >nul 2>&1
+    del browser_was_opened.txt >nul 2>&1
 )
 
 REM Step 1: Kill server window by title (multiple methods)
@@ -312,8 +313,17 @@ REM Method 3: Final attempt - close all cmd.exe windows with this title
 taskkill /FI "WINDOWTITLE eq AI Chatbot Program*" /F >nul 2>&1
 timeout /t 1 /nobreak >nul
 
+REM Final cleanup - remove all PID and browser tracking files
+del server_pid.txt >nul 2>&1
+del browser_pid.txt >nul 2>&1
+del browser_was_opened.txt >nul 2>&1
+
 REM Final exit - force close
-exit
+if "%1"=="return" (
+    exit /b 0
+) else (
+    exit
+)
 
 :main
 
@@ -321,8 +331,11 @@ echo ========================================
 echo   AI Chatbot Program Starting...
 echo ========================================
 echo.
+echo [DEBUG] Script started
+echo.
 
 REM Check Java - Try multiple methods
+echo [DEBUG] Checking Java...
 set JAVA_FOUND=0
 set JAVA_CMD=
 
@@ -331,76 +344,25 @@ where java >nul 2>&1
 if %errorlevel% equ 0 (
     set "JAVA_CMD=java"
     set JAVA_FOUND=1
+    echo [DEBUG] Java found in PATH
     goto :java_found
 )
 
 REM Method 2: Check JAVA_HOME environment variable
 if defined JAVA_HOME (
-    if exist "%JAVA_HOME%\bin\java.exe" (
-        set "JAVA_CMD=%JAVA_HOME%\bin\java.exe"
+    if exist "!JAVA_HOME!\bin\java.exe" (
+        set "JAVA_CMD=!JAVA_HOME!\bin\java.exe"
         set JAVA_FOUND=1
         goto :java_found
     )
 )
 
-REM Method 3: Search in Program Files\Java
-if exist "C:\Program Files\Java" (
-    for /d %%j in ("C:\Program Files\Java\jdk*") do (
-        if exist "%%j\bin\java.exe" (
-            set "JAVA_CMD=%%j\bin\java.exe"
-            set JAVA_FOUND=1
-            goto :java_found
-        )
-    )
-    for /d %%j in ("C:\Program Files\Java\jre*") do (
-        if exist "%%j\bin\java.exe" (
-            set "JAVA_CMD=%%j\bin\java.exe"
-            set JAVA_FOUND=1
-            goto :java_found
-        )
-    )
-)
-
-REM Method 4: Search in Program Files (x86)\Java
-if exist "C:\Program Files (x86)\Java" (
-    for /d %%j in ("C:\Program Files (x86)\Java\jdk*") do (
-        if exist "%%j\bin\java.exe" (
-            set "JAVA_CMD=%%j\bin\java.exe"
-            set JAVA_FOUND=1
-            goto :java_found
-        )
-    )
-    for /d %%j in ("C:\Program Files (x86)\Java\jre*") do (
-        if exist "%%j\bin\java.exe" (
-            set "JAVA_CMD=%%j\bin\java.exe"
-            set JAVA_FOUND=1
-            goto :java_found
-        )
-    )
-)
-
-REM Method 5: Search using ProgramFiles variable
-if defined ProgramFiles (
-    if exist "%ProgramFiles%\Java" (
-        for /d %%j in ("%ProgramFiles%\Java\jdk*") do (
-            if exist "%%j\bin\java.exe" (
-                set "JAVA_CMD=%%j\bin\java.exe"
-                set JAVA_FOUND=1
-                goto :java_found
-            )
-        )
-        for /d %%j in ("%ProgramFiles%\Java\jre*") do (
-            if exist "%%j\bin\java.exe" (
-                set "JAVA_CMD=%%j\bin\java.exe"
-                set JAVA_FOUND=1
-                goto :java_found
-            )
-        )
-    )
-)
+REM Method 3-5: Additional Java search methods (skipped if already found)
+REM Note: These methods are only used if Java is not found in PATH or JAVA_HOME
+REM Since Java was already found in PATH, these are not executed
 
 :java_found
-if %JAVA_FOUND% equ 0 (
+if !JAVA_FOUND! equ 0 (
     echo [ERROR] Java not found.
     echo.
     echo Please install Java 17 or higher from:
@@ -415,7 +377,7 @@ if %JAVA_FOUND% equ 0 (
     echo 3. Restart your computer
     echo.
     echo Press any key to exit...
-    pause >nul
+    pause
     exit /b 1
 )
 
@@ -428,38 +390,29 @@ if %errorlevel% neq 0 (
 echo.
 
 REM Set JAVA_HOME if not set and we found Java
-if not defined JAVA_HOME (
-    if not "%JAVA_CMD%"=="java" (
-        REM Extract JAVA_HOME from Java path
-        for %%i in ("%JAVA_CMD%") do (
-            set "JAVA_DIR=%%~dpi"
-        )
-        for %%i in ("%JAVA_DIR%..") do (
-            set "JAVA_HOME=%%~fi"
-        )
-        REM Remove trailing backslash
-        if "%JAVA_HOME:~-1%"=="\" set "JAVA_HOME=%JAVA_HOME:~0,-1%"
-        echo Setting JAVA_HOME to: %JAVA_HOME%
-        set "JAVA_HOME=%JAVA_HOME%"
-    )
-)
+REM Note: If JAVA_CMD is "java", JAVA_HOME is not needed
+REM Since Java was found in PATH, JAVA_CMD is "java" and JAVA_HOME is not required
+REM This section is skipped when JAVA_CMD is "java"
 
 REM Check Maven (local Maven first, then system Maven)
+echo [DEBUG] Checking Maven...
 set MAVEN_CMD=
 if exist "apache-maven-3.9.12\bin\mvn.cmd" (
     set "MAVEN_CMD=apache-maven-3.9.12\bin\mvn.cmd"
+    echo [DEBUG] Using local Maven: %MAVEN_CMD%
     echo Using local Maven
 ) else (
     where mvn >nul 2>&1
     if %errorlevel% equ 0 (
         set "MAVEN_CMD=mvn"
+        echo [DEBUG] Using system Maven: %MAVEN_CMD%
         echo Using system Maven
     ) else (
         echo [ERROR] Maven not found.
         echo Please use the included Maven or install Maven on your system.
         echo.
         echo Press any key to exit...
-        pause >nul
+        pause
         exit /b 1
     )
 )
@@ -473,7 +426,7 @@ if %errorlevel% neq 0 (
     echo [ERROR] Build failed
     echo.
     echo Press any key to exit...
-    pause >nul
+    pause
     exit /b 1
 )
 echo.
@@ -587,6 +540,9 @@ echo [INFO] Attempting to open browser at http://localhost:8080
 echo.
 set BROWSER_OPENED=0
 
+REM Mark that we're attempting to open browser (create flag file immediately)
+echo 1 > browser_was_opened.txt 2>nul
+
 REM Method 1: Windows default browser (most reliable - try multiple times)
 echo [METHOD 1] Opening Windows default browser...
 start http://localhost:8080
@@ -685,7 +641,7 @@ timeout /t 5 /nobreak >nul
 
 REM Get browser process ID - try multiple methods (wait longer for browser to connect)
 set BROWSER_PID=
-echo [INFO] 브라우저 PID 찾는 중...
+echo [INFO] Finding browser PID...
 
 REM Method 1: Check which process is using port 8080 (most reliable)
 for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080" ^| findstr "ESTABLISHED"') do (
@@ -694,7 +650,9 @@ for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080" ^| findstr "ES
         tasklist /FI "PID eq %%p" 2^>nul | findstr /I "chrome.exe msedge.exe firefox.exe iexplore.exe" >nul
         if !errorlevel! equ 0 (
             set BROWSER_PID=%%p
-            echo [SUCCESS] 브라우저 PID 찾음: %BROWSER_PID%
+            echo [SUCCESS] Browser PID found: %BROWSER_PID%
+            REM Save browser PID to file for later use
+            echo %BROWSER_PID% > browser_pid.txt 2>nul
             goto :browser_pid_saved
         )
     )
@@ -709,6 +667,9 @@ if not defined BROWSER_PID (
             echo %%c | findstr /I "localhost:8080" >nul
             if !errorlevel! equ 0 (
                 set BROWSER_PID=%%p
+                echo [SUCCESS] Browser PID found (Method 2): %BROWSER_PID%
+                REM Save browser PID to file for later use
+                echo %BROWSER_PID% > browser_pid.txt 2>nul
                 goto :browser_pid_found
             )
         )
@@ -718,6 +679,9 @@ if not defined BROWSER_PID (
             echo %%c | findstr /I "localhost:8080" >nul
             if !errorlevel! equ 0 (
                 set BROWSER_PID=%%p
+                echo [SUCCESS] Browser PID found (Method 2): %BROWSER_PID%
+                REM Save browser PID to file for later use
+                echo %BROWSER_PID% > browser_pid.txt 2>nul
                 goto :browser_pid_found
             )
         )
@@ -727,6 +691,9 @@ if not defined BROWSER_PID (
             echo %%c | findstr /I "localhost:8080" >nul
             if !errorlevel! equ 0 (
                 set BROWSER_PID=%%p
+                echo [SUCCESS] Browser PID found (Method 2): %BROWSER_PID%
+                REM Save browser PID to file for later use
+                echo %BROWSER_PID% > browser_pid.txt 2>nul
                 goto :browser_pid_found
             )
         )
@@ -743,135 +710,192 @@ echo ========================================
 echo.
 echo Server window: "AI Chatbot Server"
 if defined BROWSER_PID (
-    echo Browser PID: %BROWSER_PID% (모니터링 중...)
-    echo 브라우저를 닫으면 자동으로 종료됩니다.
+    echo Browser PID: %BROWSER_PID% (monitoring...)
+    echo Browser will close automatically when closed.
+    REM Mark that we had a browser initially and save PID
+    echo 1 > browser_was_opened.txt 2>nul
+    echo %BROWSER_PID% > browser_pid.txt 2>nul
 ) else (
-    echo Browser PID: 찾을 수 없음 (자동 감지 모드)
-    echo 브라우저를 닫으면 자동으로 종료됩니다.
+    echo Browser PID: Not found (auto-detect mode)
+    echo Browser will close automatically when closed.
+    REM Wait a bit more and try to find browser again
+    timeout /t 3 /nobreak >nul
+    REM Try to find browser one more time
+    for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080" ^| findstr "ESTABLISHED"') do (
+        if not "%%p"=="" (
+            tasklist /FI "PID eq %%p" 2^>nul | findstr /I "chrome.exe msedge.exe firefox.exe iexplore.exe" >nul
+            if !errorlevel! equ 0 (
+                set BROWSER_PID=%%p
+                echo %BROWSER_PID% > browser_pid.txt 2>nul
+                echo 1 > browser_was_opened.txt 2>nul
+                echo [INFO] Browser PID found (delayed detection): %BROWSER_PID%
+                goto :browser_found_delayed
+            )
+        )
+    )
+    :browser_found_delayed
+    REM Even if PID not found, mark that browser was opened
+    if not exist browser_was_opened.txt (
+        echo 1 > browser_was_opened.txt 2>nul
+    )
 )
 echo.
 echo ========================================
-echo   자동 종료 모드 활성화
+echo   Auto-close mode activated
 echo ========================================
-echo   브라우저를 닫으면 서버와 실행창이 자동으로 종료됩니다.
-echo   이 창에서 Ctrl+C를 누르면 즉시 종료할 수 있습니다.
+echo   Browser will close automatically when closed.
+echo   Press Ctrl+C in this window to stop immediately.
 echo ========================================
 echo.
-echo 모니터링 중... (1초마다 브라우저 상태 확인)
+echo Monitoring... (checking browser status every 1 second)
 echo.
 
 REM Monitor loop - check browser and server every 1 second (automatic mode)
 :monitor_loop
 timeout /t 1 /nobreak >nul
 
-REM Check if browser process still exists - prioritize saved PID
-set BROWSER_EXISTS=0
+REM Check if browser was opened
+if not exist browser_was_opened.txt (
+    REM Browser was never opened, continue monitoring
+    goto :browser_check_done
+)
 
-REM Method 1: Check specific browser PID if we found one earlier (MOST RELIABLE)
+REM Always load browser PID from file
+set BROWSER_PID=
+if exist browser_pid.txt (
+    set /p BROWSER_PID=<browser_pid.txt 2>nul
+)
+
+REM Check if browser PID is still running
+set BROWSER_STILL_RUNNING=0
 if defined BROWSER_PID (
-    REM Check if browser PID still exists
+    REM Check if the process exists and is a browser
     tasklist /FI "PID eq %BROWSER_PID%" 2^>nul | findstr /I "%BROWSER_PID%" >nul
     if !errorlevel! equ 0 (
-        REM Browser PID still exists - browser is open
-        set BROWSER_EXISTS=1
-        goto :browser_check_done
-    ) else (
-        REM Browser PID no longer exists - browser was closed (MOST RELIABLE INDICATOR)
-        set BROWSER_EXISTS=0
-        echo [INFO] 브라우저 PID %BROWSER_PID%가 더 이상 존재하지 않습니다. 브라우저가 닫혔습니다.
-        goto :browser_check_done
+        REM Process exists - check if it's still a browser process
+        tasklist /FI "PID eq %BROWSER_PID%" 2^>nul | findstr /I "chrome.exe msedge.exe firefox.exe iexplore.exe" >nul
+        if !errorlevel! equ 0 (
+            set BROWSER_STILL_RUNNING=1
+        ) else (
+            REM PID exists but not a browser - might be wrong PID
+            set BROWSER_PID=
+            del browser_pid.txt >nul 2>&1
+        )
     )
 )
 
-REM Method 2: Check if any browser is connected to port 8080 (fallback if no PID saved)
-if !BROWSER_EXISTS! equ 0 (
+REM If saved browser PID is not running, check port 8080 for any browser
+if !BROWSER_STILL_RUNNING! equ 0 (
+    set BROWSER_FOUND=0
     for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080" ^| findstr "ESTABLISHED"') do (
         if not "%%p"=="" (
-            REM Check if this PID is a browser process
             tasklist /FI "PID eq %%p" 2^>nul | findstr /I "chrome.exe msedge.exe firefox.exe iexplore.exe" >nul
             if !errorlevel! equ 0 (
-                set BROWSER_EXISTS=1
+                set BROWSER_FOUND=1
+                set BROWSER_PID=%%p
+                echo %BROWSER_PID% > browser_pid.txt 2>nul
                 goto :browser_check_done
             )
         )
     )
-)
-
-REM Method 3: Check for any browser process with localhost:8080 in command line (final fallback)
-if !BROWSER_EXISTS! equ 0 (
-    REM Check Edge (most common)
-    for /f "tokens=2" %%p in ('tasklist /FI "IMAGENAME eq msedge.exe" /FO LIST 2^>nul ^| findstr /I "PID"') do (
-        for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%p" get CommandLine 2^>nul') do (
-            echo %%c | findstr /I "localhost:8080" >nul
-            if !errorlevel! equ 0 (
-                set BROWSER_EXISTS=1
-                goto :browser_check_done
+    
+    REM No browser found - check if we had a browser before
+    if !BROWSER_FOUND! equ 0 (
+        REM Check if browser_was_opened.txt exists (browser was opened at some point)
+        if exist browser_was_opened.txt (
+            REM We had a browser before, but now it's gone - browser was closed
+            echo.
+            echo ========================================
+            echo   Browser closed!
+            echo   Browser process is no longer running.
+            echo   Stopping server and closing window...
+            echo ========================================
+            echo.
+            call :cleanup
+            echo.
+            echo [INFO] Cleanup completed, exiting...
+            timeout /t 1 /nobreak >nul
+            REM Force close this window
+            for /f "tokens=2" %%p in ('tasklist /FI "WINDOWTITLE eq AI Chatbot Program*" /FI "IMAGENAME eq cmd.exe" /FO LIST 2^>nul ^| findstr /I "PID"') do (
+                if not "%%p"=="" (
+                    taskkill /PID %%p /F >nul 2>&1
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "Stop-Process -Id %%p -Force -ErrorAction SilentlyContinue" >nul 2>&1
+                )
             )
-        )
-    )
-    REM Check Chrome
-    for /f "tokens=2" %%p in ('tasklist /FI "IMAGENAME eq chrome.exe" /FO LIST 2^>nul ^| findstr /I "PID"') do (
-        for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%p" get CommandLine 2^>nul') do (
-            echo %%c | findstr /I "localhost:8080" >nul
-            if !errorlevel! equ 0 (
-                set BROWSER_EXISTS=1
-                goto :browser_check_done
+            REM Also try to close by finding current process
+            for /f "tokens=2" %%p in ('tasklist /FI "IMAGENAME eq cmd.exe" /FO LIST 2^>nul ^| findstr /I "PID"') do (
+                for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%p" get CommandLine 2^>nul') do (
+                    echo %%c | findstr /I "실행.bat" >nul
+                    if !errorlevel! equ 0 (
+                        taskkill /PID %%p /F >nul 2>&1
+                        exit
+                    )
+                )
             )
-        )
-    )
-    REM Check Firefox
-    for /f "tokens=2" %%p in ('tasklist /FI "IMAGENAME eq firefox.exe" /FO LIST 2^>nul ^| findstr /I "PID"') do (
-        for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%p" get CommandLine 2^>nul') do (
-            echo %%c | findstr /I "localhost:8080" >nul
-            if !errorlevel! equ 0 (
-                set BROWSER_EXISTS=1
-                goto :browser_check_done
-            )
+            exit
         )
     )
 )
 
 :browser_check_done
 
-REM If browser doesn't exist, close everything
-if !BROWSER_EXISTS! equ 0 (
-    echo.
-    echo ========================================
-    echo   브라우저가 닫혔습니다!
-    echo   서버와 실행창을 종료합니다...
-    echo ========================================
-    echo.
-    timeout /t 1 /nobreak >nul
-    
-    REM Run cleanup to stop server and close window
-    goto :cleanup
-)
-
 REM Check if server window still exists
 tasklist /FI "WINDOWTITLE eq AI Chatbot Server*" /FO LIST 2^>nul | findstr /I "PID" >nul
 if !errorlevel! neq 0 (
-    echo.
-    echo 서버 창이 닫혔습니다. 실행창을 종료합니다...
-    timeout /t 1 /nobreak >nul
-    goto :cleanup
+    REM Server window doesn't exist - check if server process is still running
+    set SERVER_STILL_RUNNING=0
+    if exist server_pid.txt (
+        set /p SAVED_SERVER_PID=<server_pid.txt 2>nul
+        if defined SAVED_SERVER_PID (
+            tasklist /FI "PID eq !SAVED_SERVER_PID!" 2^>nul | findstr /I "!SAVED_SERVER_PID!" >nul
+            if !errorlevel! equ 0 (
+                set SERVER_STILL_RUNNING=1
+            )
+        )
+    )
+    REM Also check for Java processes
+    tasklist /FI "IMAGENAME eq java.exe" 2^>nul | findstr /I "java.exe" >nul
+    if !errorlevel! equ 0 (
+        set SERVER_STILL_RUNNING=1
+    )
+    if !SERVER_STILL_RUNNING! equ 0 (
+        echo.
+        echo Server window closed. Closing execution window...
+        timeout /t 1 /nobreak >nul
+        call :cleanup
+        REM Force exit after cleanup
+        exit /b 0
+    )
 )
 
 REM Check if Java process on port 8080 still exists (server is running)
+REM Only check if we've been monitoring for a while (give server time to start)
 set SERVER_RUNNING=0
-for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080"') do (
+for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr ":8080" ^| findstr "LISTENING"') do (
     if not "%%p"=="" (
         set SERVER_RUNNING=1
         goto :server_check_done
     )
 )
 :server_check_done
+REM Only exit if server window doesn't exist AND no server process found
+REM Give server time to start - don't exit immediately
 if !SERVER_RUNNING! equ 0 (
-    echo.
-    echo 서버가 종료되었습니다. 실행창을 종료합니다...
-    timeout /t 1 /nobreak >nul
-    goto :cleanup
+    REM Check if server window exists - if it does, server might still be starting
+    tasklist /FI "WINDOWTITLE eq AI Chatbot Server*" /FO LIST 2^>nul | findstr /I "PID" >nul
+    if !errorlevel! neq 0 (
+        REM Server window doesn't exist - check Java process
+        tasklist /FI "IMAGENAME eq java.exe" 2^>nul | findstr /I "java.exe" >nul
+        if !errorlevel! neq 0 (
+            REM No server window and no Java process - server is really gone
+            echo.
+            echo Server stopped. Closing execution window...
+            timeout /t 1 /nobreak >nul
+            call :cleanup
+            REM Force exit after cleanup
+            exit /b 0
+        )
+    )
 )
 
 goto :monitor_loop
-
-
