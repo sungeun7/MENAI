@@ -16,7 +16,7 @@
     <artifactId>ai-chatbot</artifactId>
     <version>1.0.0</version>
     <name>AI 챗봇 프로그램</name>
-    <description>무료 AI 챗봇 프로그램</description>
+    <description>AI 챗봇 프로그램</description>
 
     <properties>
         <java.version>17</java.version>
