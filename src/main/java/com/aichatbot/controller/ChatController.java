@@ -550,6 +550,70 @@ public class ChatController {
         return ResponseEntity.ok(payload);
     }
 
+    @PostMapping("/chat/message/move")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> moveMessage(HttpSession session, @RequestBody Map<String, Object> body) {
+        ChatCategory source = getCurrentCategory(session);
+        List<Map<String, String>> sourceMessages = source.getMessages();
+        if (sourceMessages == null) {
+            sourceMessages = new ArrayList<>();
+            source.setMessages(sourceMessages);
+        }
+
+        if (body == null || !body.containsKey("index") || !body.containsKey("targetCategoryId")) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "index와 targetCategoryId가 필요합니다.");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        int index;
+        Object rawIndex = body.get("index");
+        if (rawIndex instanceof Number) {
+            index = ((Number) rawIndex).intValue();
+        } else {
+            try {
+                index = Integer.parseInt(String.valueOf(rawIndex));
+            } catch (Exception e) {
+                Map<String, Object> err = new HashMap<>();
+                err.put("error", "index 형식이 올바르지 않습니다.");
+                return ResponseEntity.badRequest().body(err);
+            }
+        }
+        if (index < 0 || index >= sourceMessages.size()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "이동할 메시지를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        String targetId = String.valueOf(body.get("targetCategoryId"));
+        ChatCategory target = findCategoryById(session, targetId);
+        if (target == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "대상 범주를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(err);
+        }
+        if (source.getId().equals(target.getId())) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "같은 범주로는 이동할 수 없습니다.");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        Map<String, String> moving = sourceMessages.remove(index);
+        List<Map<String, String>> targetMessages = target.getMessages();
+        if (targetMessages == null) {
+            targetMessages = new ArrayList<>();
+            target.setMessages(targetMessages);
+        }
+        targetMessages.add(moving);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("messages", new ArrayList<>(sourceMessages));
+        payload.put("count", sourceMessages.size());
+        payload.put("categoryId", source.getId());
+        payload.put("categoryTitle", source.getTitle());
+        return ResponseEntity.ok(payload);
+    }
+
     @PostMapping("/shutdown")
     @ResponseBody
     public ResponseEntity<Map<String, String>> shutdown() {

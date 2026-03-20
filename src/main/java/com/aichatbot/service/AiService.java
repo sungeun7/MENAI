@@ -79,6 +79,12 @@ public class AiService {
         try {
             System.out.println("AI 타입: " + (aiType != null ? aiType : "null"));
 
+            // 지하철 노선/환승처럼 "정확한 사실"을 요구하는 질의는 환각 위험이 커서,
+            // 모델 호출 전에 가드레일로 먼저 안내합니다.
+            if (looksLikeSubwayOrLineQuery(prompt)) {
+                return subwayHallucinationGuardrailResponse(prompt);
+            }
+
             // AI 타입에 따라 분기 처리
             if (aiType != null) {
                 if (aiType.contains("Gemini") || aiType.contains("제미나이") || aiType.contains("gemini")) {
@@ -104,6 +110,42 @@ public class AiService {
     private static final int TITLE_TRANSCRIPT_MAX_MESSAGES = 14;
     private static final int TITLE_TRANSCRIPT_MAX_CHARS = 420;
     private static final int TITLE_OUTPUT_MAX_CHARS = 32;
+
+    private boolean looksLikeSubwayOrLineQuery(String prompt) {
+        if (prompt == null) {
+            return false;
+        }
+        String p = prompt.toLowerCase();
+        boolean hasCore =
+            p.contains("지하철") ||
+                p.contains("subway") ||
+                p.contains("노선") ||
+                p.contains("호선") ||
+                p.contains("환승") ||
+                p.contains("line");
+
+        boolean hasStationInRouteContext =
+            p.contains("역") &&
+                (p.contains("출발") || p.contains("도착") || p.contains("환승") || p.contains("까지") || p.contains("경로") || hasCore);
+
+        return hasCore || hasStationInRouteContext;
+    }
+
+    private String subwayHallucinationGuardrailResponse(String prompt) {
+        boolean isSeoul = prompt != null && prompt.contains("서울");
+        String scope = isSeoul ? "서울 지하철" : "지하철";
+        String officialSource = isSeoul
+            ? "가장 정확한 확인은 네이버지도/카카오맵의 대중교통 또는 서울교통공사(및 해당 운행기관) 공식 정보/노선도"
+            : "가장 정확한 확인은 네이버지도/카카오맵의 대중교통 또는 해당 지역 교통공사 공식 정보/노선도";
+
+        return scope + " 노선/환승 경로는 제가 실시간 공식 노선 데이터를 조회하지 못해, 확인되지 않은(없는) 노선을 만들어 안내할 수 있습니다.\n\n" +
+               "정확도를 위해 아래 정보를 알려주시면, 가능한 경로를 어떻게 확인해야 하는지(검색 방법/환승역 후보 정리) 중심으로 도와드릴게요.\n\n" +
+               "1) 출발역\n" +
+               "2) 도착역\n" +
+               (isSeoul ? "3) 대략적인 시간대(현재/출퇴근/평일·주말 등)\n\n" : "3) 도시/지역(예: 서울/부산/대전 등)\n\n") +
+               "4) 원하시는 시간대(현재/출퇴근/대략 시간)\n\n" +
+               officialSource + "를 이용해 주세요.";
+    }
 
     /**
      * 대화 맥락을 짧은 한국어 제목으로 요약 (ChatGPT 사이드바 스타일).
@@ -826,7 +868,8 @@ public class AiService {
             List<Map<String, String>> messages = new ArrayList<>();
             Map<String, String> systemMsg = new HashMap<>();
             systemMsg.put("role", "system");
-            systemMsg.put("content", "당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 한국어로 답변하고, 이전 사용자 메시지와 당신의 이전 답변을 맥락으로 삼아 일관되게 이어서 대화하세요.");
+            systemMsg.put("content", "당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 한국어로 답변하고, 이전 사용자 메시지와 당신의 이전 답변을 맥락으로 삼아 일관되게 이어서 대화하세요.\n" +
+                "단, 지하철 노선/환승 경로/시간표처럼 '있는지'가 중요한 사실 정보를 확신할 수 없으면 임의로 만들어 답하지 말고, 확인할 수 없다고 말한 뒤 사용자가 공식 출처(지도 앱/교통공사 등)를 확인하도록 안내하세요.");
             messages.add(systemMsg);
 
             List<Map<String, String>> normalized = normalizeHistoryForApi(conversationHistory, prompt);
