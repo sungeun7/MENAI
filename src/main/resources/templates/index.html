@@ -225,6 +225,36 @@
             word-wrap: break-word;
         }
 
+        .message-delete {
+            width: 30px;
+            min-width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        .message-delete:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            box-shadow: none;
+        }
+
+        .message-avatar.clickable {
+            cursor: pointer;
+        }
+
+        .message-avatar.clickable:hover {
+            opacity: 0.9;
+        }
+
         .message.user .message-content {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -315,11 +345,258 @@
         .model-status.show {
             display: block;
         }
+
+        .context-hint {
+            font-size: 13px;
+            color: #666;
+            background: #f4f6fb;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .context-hint.has-context {
+            border-color: #c7d2fe;
+            background: #eef2ff;
+            color: #4338ca;
+        }
+
+        .category-section h2 {
+            margin-top: 0;
+        }
+
+        .category-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: stretch;
+        }
+
+        .category-toolbar input[type="text"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        button.btn-compact {
+            width: auto;
+            min-width: 72px;
+            padding: 10px 14px;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .category-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid #e8e8e8;
+            margin-bottom: 6px;
+            background: #fafafa;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .category-item:hover {
+            border-color: #c7d2fe;
+        }
+
+        .category-item.active {
+            border-color: #667eea;
+            background: #eef2ff;
+        }
+
+        .category-item-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .category-item-count {
+            font-size: 12px;
+            color: #888;
+            flex-shrink: 0;
+        }
+
+        button.category-delete {
+            width: 34px;
+            min-width: 34px;
+            height: 34px;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #555;
+            flex-shrink: 0;
+        }
+
+        button.category-delete:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            box-shadow: none;
+            transform: none;
+        }
+
+        button.category-clear {
+            width: 34px;
+            min-width: 34px;
+            height: 34px;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #555;
+            flex-shrink: 0;
+            border: 1px solid #e5e7eb;
+        }
+
+        button.category-clear:hover {
+            background: #eff6ff;
+            color: #1d4ed8;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .category-hint {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.4;
+            margin-top: 6px;
+        }
+
+        .main-category-bar {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .main-category-bar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .main-category-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .main-category-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .category-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            color: #475569;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            max-width: 100%;
+        }
+
+        .category-chip:hover {
+            border-color: #c7d2fe;
+            background: #f8fafc;
+        }
+
+        .category-chip.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+            color: #3730a3;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-chip-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 160px;
+        }
+
+        .category-chip-count {
+            font-size: 12px;
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+
+        .category-chip.active .category-chip-count {
+            color: #6366f1;
+        }
+
+        button.chip-delete {
+            width: 22px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0;
+            margin-left: 2px;
+            font-size: 14px;
+            line-height: 1;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #64748b;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        button.chip-delete:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            transform: none;
+            box-shadow: none;
+        }
+
+        button.category-delete:disabled,
+        button.category-delete.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="sidebar">
+            <div class="section category-section">
+                <h2>📁 대화 범주</h2>
+                <div class="category-toolbar">
+                    <input type="text" id="newCategoryTitle" placeholder="범주 이름" maxlength="40" title="새 범주 이름">
+                    <button type="button" class="btn-compact" onclick="createCategory()">추가</button>
+                </div>
+                <div id="categoryList" class="category-list" role="list"></div>
+                <p class="category-hint">이름을 <strong>직접 입력해 만든</strong> 범주만 제목이 고정되고, 「일반」「새 범주」는 대화 맥락을 요약해 제목이 자동으로 바뀝니다. 🧹는 해당 범주의 대화만 비웁니다. 🗑는 현재 범주가 아닌 경우에만 범주 자체를 삭제합니다.</p>
+            </div>
+
             <h2>⚙️ 설정</h2>
 
             <div class="section">
@@ -379,6 +656,15 @@
         <div class="main-content">
             <h1>🤖 MENAI</h1>
             <div class="chat-container">
+                <div class="main-category-bar" aria-label="대화 기록 범주">
+                    <div class="main-category-bar-header">
+                        <span class="main-category-label">대화 기록 범주</span>
+                    </div>
+                    <div id="mainCategoryChips" class="main-category-chips" role="list"></div>
+                </div>
+                <div id="contextHint" class="context-hint" role="status">
+                    저장된 대화 맥락이 없습니다. 메시지를 입력하면 이후 답변에 이전 대화가 반영됩니다.
+                </div>
                 <div class="chat-messages" id="chatMessages">
                     <div class="empty-state">
                         <h3>💬 위의 입력창에 메시지를 입력하고 Enter를 누르면 MENAI와 대화할 수 있습니다!</h3>
@@ -415,9 +701,285 @@
         }
 
 
+        function updateContextHint(count, categoryTitle) {
+            const el = document.getElementById('contextHint');
+            if (!el) return;
+            const label = categoryTitle ? '「' + categoryTitle + '」' : '현재 범주';
+            if (count == null || count < 1) {
+                el.textContent = label + '에 저장된 맥락이 없습니다. 메시지를 입력하면 이후 답변에 이 범주의 이전 대화가 반영됩니다.';
+                el.classList.remove('has-context');
+            } else {
+                el.textContent = label + '에 ' + count + '개의 메시지가 있습니다. 최근 대화(최대 48개)가 다음 AI 답변 맥락으로 전달됩니다.';
+                el.classList.add('has-context');
+            }
+        }
+
+        var lastCategoriesPayload = null;
+
+        function renderCategoryList(data) {
+            lastCategoriesPayload = data;
+            const sidebar = document.getElementById('categoryList');
+            const mainChips = document.getElementById('mainCategoryChips');
+            if (!data || !data.categories) {
+                if (sidebar) sidebar.innerHTML = '';
+                if (mainChips) mainChips.innerHTML = '';
+                return;
+            }
+            const currentId = data.currentCategoryId;
+            const onlyOne = data.categories.length <= 1;
+
+            function appendSidebarRow(c) {
+                if (!sidebar) return;
+                const isCurrent = c.id === currentId;
+                const row = document.createElement('div');
+                row.className = 'category-item' + (isCurrent ? ' active' : '');
+                row.setAttribute('role', 'listitem');
+                row.dataset.id = c.id;
+
+                const title = document.createElement('span');
+                title.className = 'category-item-title';
+                title.textContent = c.title || '(이름 없음)';
+
+                const cnt = document.createElement('span');
+                cnt.className = 'category-item-count';
+                cnt.textContent = '(' + (c.messageCount != null ? c.messageCount : 0) + ')';
+
+                row.appendChild(title);
+                row.appendChild(cnt);
+
+                // 대화만 비우기
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'category-clear';
+                clearBtn.setAttribute('aria-label', '대화 삭제');
+                clearBtn.textContent = '🧹';
+                clearBtn.title = '이 범주의 대화만 삭제';
+                clearBtn.onclick = function (ev) {
+                    ev.stopPropagation();
+                    clearConversation(c.id);
+                };
+                row.appendChild(clearBtn);
+
+                // 범주 삭제
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'category-delete';
+                del.setAttribute('aria-label', '범주 삭제');
+                del.textContent = '🗑';
+                del.title = isCurrent ? '현재 범주는 삭제할 수 없습니다' : '이 범주 삭제';
+                del.disabled = isCurrent;
+                if (!isCurrent) {
+                    del.onclick = function (ev) {
+                        ev.stopPropagation();
+                        deleteCategory(c.id);
+                    };
+                }
+                row.appendChild(del);
+                row.onclick = function () {
+                    if (!isCurrent) selectCategory(c.id);
+                };
+                sidebar.appendChild(row);
+            }
+
+            function appendMainChip(c) {
+                if (!mainChips) return;
+                const isCurrent = c.id === currentId;
+                const chip = document.createElement('div');
+                chip.className = 'category-chip' + (isCurrent ? ' active' : '');
+                chip.setAttribute('role', 'listitem');
+                chip.dataset.id = c.id;
+
+                const t = document.createElement('span');
+                t.className = 'category-chip-title';
+                t.textContent = c.title || '(이름 없음)';
+
+                const n = document.createElement('span');
+                n.className = 'category-chip-count';
+                n.textContent = '(' + (c.messageCount != null ? c.messageCount : 0) + ')';
+
+                chip.appendChild(t);
+                chip.appendChild(n);
+
+                const x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'chip-delete';
+                x.setAttribute('aria-label', '대화 삭제');
+                x.textContent = '×';
+                x.title = '이 범주의 대화만 삭제';
+                x.onclick = function (ev) {
+                    ev.stopPropagation();
+                    clearConversation(c.id);
+                };
+                chip.appendChild(x);
+
+                chip.onclick = function () {
+                    if (!isCurrent) selectCategory(c.id);
+                };
+                mainChips.appendChild(chip);
+            }
+
+            if (sidebar) sidebar.innerHTML = '';
+            if (mainChips) mainChips.innerHTML = '';
+            data.categories.forEach(function (c) {
+                appendSidebarRow(c);
+                appendMainChip(c);
+            });
+        }
+
+        function loadCategories() {
+            return fetch('/chat/categories', { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    renderCategoryList(data);
+                    return data;
+                })
+                .catch(function () { return null; });
+        }
+
+        function selectCategory(categoryId) {
+            fetch('/chat/category/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ categoryId: categoryId })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    renderCategoryList(data);
+                    // select 응답에 메시지가 포함되어 있으면 그걸로 즉시 렌더링합니다.
+                    if (Array.isArray(data.messages)) {
+                        const list = data.messages || [];
+                        const cnt = data.count != null ? data.count : list.length;
+                        const title = data.categoryTitle || '';
+                        const messagesDiv = document.getElementById('chatMessages');
+                        messagesDiv.innerHTML = '';
+                        window.__chatMessages = list;
+
+                        if (!list.length) {
+                            messagesDiv.innerHTML =
+                                '<div class="empty-state"><h3>💬 위의 입력창에 메시지를 입력하고 Enter를 누르면 MENAI와 대화할 수 있습니다!</h3></div>';
+                            updateContextHint(0, title);
+                            return;
+                        }
+
+                        updateContextHint(cnt, title);
+                        for (let i = 0; i < list.length; i++) {
+                            const m = list[i];
+                            const role = m.role === 'assistant' ? 'assistant' : 'user';
+                            addMessage(role, m.content != null ? m.content : '', i);
+                        }
+                    } else {
+                        loadChatHistoryFromServer();
+                    }
+                })
+                .catch(function () { alert('범주 전환에 실패했습니다.'); });
+        }
+
+        function createCategory() {
+            const input = document.getElementById('newCategoryTitle');
+            const title = input ? input.value.trim() : '';
+            fetch('/chat/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ title: title || '새 범주' })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    renderCategoryList(data);
+                    if (input) input.value = '';
+                    loadChatHistoryFromServer();
+                })
+                .catch(function () { alert('범주 추가에 실패했습니다.'); });
+        }
+
+        function clearConversation(categoryId) {
+            if (!confirm('이 범주의 대화만 삭제할까요?')) return;
+            fetch('/chat/categories/' + encodeURIComponent(categoryId) + '/clear', {
+                method: 'POST',
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    renderCategoryList(data);
+                    loadChatHistoryFromServer();
+                })
+                .catch(function () { alert('대화 삭제에 실패했습니다.'); });
+        }
+
+        function deleteCategory(categoryId) {
+            if (!confirm('이 범주를 삭제할까요? (해당 범주의 대화도 함께 삭제됩니다)')) return;
+            fetch('/chat/categories/' + encodeURIComponent(categoryId), {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    renderCategoryList(data);
+                    loadChatHistoryFromServer();
+                })
+                .catch(function () { alert('범주 삭제에 실패했습니다.'); });
+        }
+
+        function loadChatHistoryFromServer() {
+            fetch('/chat/history', { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    const list = data.messages || [];
+                    const cnt = data.count != null ? data.count : list.length;
+                    const title = data.categoryTitle || '';
+                    const messagesDiv = document.getElementById('chatMessages');
+                    messagesDiv.innerHTML = '';
+                    window.__chatMessages = list;
+                    if (!list.length) {
+                        messagesDiv.innerHTML =
+                            '<div class="empty-state"><h3>💬 위의 입력창에 메시지를 입력하고 Enter를 누르면 MENAI와 대화할 수 있습니다!</h3></div>';
+                        updateContextHint(0, title);
+                        return;
+                    }
+                    updateContextHint(cnt, title);
+                    for (let i = 0; i < list.length; i++) {
+                        const m = list[i];
+                        const role = m.role === 'assistant' ? 'assistant' : 'user';
+                        addMessage(role, m.content != null ? m.content : '', i);
+                    }
+                })
+                .catch(function () {
+                    updateContextHint(0, '');
+                });
+        }
+
         // 페이지 로드 시 초기 상태 설정
         document.addEventListener('DOMContentLoaded', function() {
             updateAiSettings();
+            const newCatInput = document.getElementById('newCategoryTitle');
+            if (newCatInput) {
+                newCatInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        createCategory();
+                    }
+                });
+            }
+            loadCategories().then(function () {
+                loadChatHistoryFromServer();
+            });
         });
 
         // 브라우저 창이 닫힐 때 서버 종료 요청
@@ -642,8 +1204,13 @@
                     throw new Error('응답 형식 오류: message 필드가 없습니다');
                 }
 
+                loadCategories();
+
                 // 모델 상태 업데이트 (응답 메시지에 따라)
                 const message = data.message;
+                if (typeof data.historyMessageCount === 'number') {
+                    updateContextHint(data.historyMessageCount, data.categoryTitle || '');
+                }
                 console.log('응답 메시지 길이:', message.length, '자');
                 const statusDiv = document.getElementById('modelStatus');
 
@@ -708,6 +1275,8 @@
 
                     // 재시도 시간 정보가 없으면 일반 오류 메시지 표시
                     addMessage('assistant', message);
+                    loadCategories();
+                    loadChatHistoryFromServer();
                     return;
                 }
 
@@ -728,6 +1297,8 @@
                     statusDiv.className = 'model-status error show';
                     statusDiv.textContent = '❌ API 키 오류';
                     addMessage('assistant', message);
+                    loadCategories();
+                    loadChatHistoryFromServer();
                     return;
                 } else if (message.includes('❌') || message.includes('오류') || message.includes('실패')) {
                     // 오류
@@ -740,6 +1311,8 @@
                 }
 
                 addMessage('assistant', message);
+                loadCategories();
+                loadChatHistoryFromServer();
             })
             .catch(error => {
                 // 타임아웃 취소
@@ -796,6 +1369,8 @@
                 }
 
                 addMessage('assistant', errorMessage);
+                loadCategories();
+                loadChatHistoryFromServer();
             });
         }
 
@@ -804,7 +1379,7 @@
             return '';
         }
 
-        function addMessage(role, content) {
+        function addMessage(role, content, messageIndex = null) {
             const messagesDiv = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
@@ -819,6 +1394,35 @@
 
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(messageContent);
+
+            if (typeof messageIndex === 'number') {
+                if (role === 'user') {
+                    avatar.classList.add('clickable');
+                    avatar.onclick = function (ev) {
+                        ev.stopPropagation();
+                        const msgs = window.__chatMessages || [];
+                        const targetIndex = messageIndex + 1; // 사용자 다음 턴의 답변 삭제
+                        if (targetIndex >= 0 && targetIndex < msgs.length && msgs[targetIndex] && msgs[targetIndex].role === 'assistant') {
+                            deleteMessageFromServer(targetIndex);
+                        } else {
+                            alert('이 사용자 메시지에 연결된 답변을 찾을 수 없습니다.');
+                        }
+                    };
+                }
+
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'message-delete';
+                del.setAttribute('aria-label', '메시지 삭제');
+                del.title = '이 메시지 삭제';
+                del.textContent = '×';
+                del.onclick = function (ev) {
+                    ev.stopPropagation();
+                    deleteMessageFromServer(messageIndex);
+                };
+                messageDiv.appendChild(del);
+            }
+
             messagesDiv.appendChild(messageDiv);
 
             scrollChatToBottom(true);
@@ -832,8 +1436,32 @@
                 .then(() => {
                     document.getElementById('chatMessages').innerHTML =
                         '<div class="empty-state"><h3>💬 위의 입력창에 메시지를 입력하고 Enter를 누르면 AI와 대화할 수 있습니다!</h3></div>';
+                    loadChatHistoryFromServer();
+                    loadCategories();
                 });
             }
+        }
+
+        function deleteMessageFromServer(messageIndex) {
+            if (messageIndex == null) return;
+            if (!confirm('이 메시지를 삭제할까요?')) return;
+            fetch('/chat/message/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ index: messageIndex })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    // 서버 상태를 기준으로 다시 그려서 인덱스가 어긋나지 않게 합니다.
+                    loadCategories();
+                    loadChatHistoryFromServer();
+                })
+                .catch(function () { alert('메시지 삭제에 실패했습니다.'); });
         }
     </script>
 </body>

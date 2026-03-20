@@ -17,6 +17,63 @@ public class AiService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** API 요청 본문 크기 제한 — 최근 N개 메시지만 맥락으로 전달 */
+    private static final int MAX_CONVERSATION_MESSAGES = 48;
+
+    /**
+     * user/assistant만 남기고, 최근 MAX_CONVERSATION_MESSAGES개로 자르며,
+     * Gemini 등에서 요구하는 대로 첫 턴이 user가 되도록 앞의 orphan assistant를 제거합니다.
+     */
+    private List<Map<String, String>> normalizeHistoryForApi(List<Map<String, String>> history, String fallbackPrompt) {
+        List<Map<String, String>> slice = new ArrayList<>();
+        if (history != null) {
+            int from = Math.max(0, history.size() - MAX_CONVERSATION_MESSAGES);
+            for (int i = from; i < history.size(); i++) {
+                Map<String, String> m = history.get(i);
+                if (m == null) {
+                    continue;
+                }
+                String role = m.get("role");
+                String content = m.get("content");
+                if (content == null) {
+                    content = "";
+                }
+                if (!"user".equals(role) && !"assistant".equals(role)) {
+                    continue;
+                }
+                Map<String, String> copy = new HashMap<>();
+                copy.put("role", role);
+                copy.put("content", content);
+                slice.add(copy);
+            }
+        }
+        while (!slice.isEmpty() && !"user".equals(slice.get(0).get("role"))) {
+            slice.remove(0);
+        }
+        if (slice.isEmpty() && fallbackPrompt != null && !fallbackPrompt.trim().isEmpty()) {
+            Map<String, String> u = new HashMap<>();
+            u.put("role", "user");
+            u.put("content", fallbackPrompt.trim());
+            slice.add(u);
+        }
+        return slice;
+    }
+
+    private List<Map<String, Object>> buildGeminiContents(List<Map<String, String>> normalizedTurns) {
+        List<Map<String, Object>> contents = new ArrayList<>();
+        for (Map<String, String> msg : normalizedTurns) {
+            String role = msg.get("role");
+            String geminiRole = "assistant".equals(role) ? "model" : "user";
+            Map<String, Object> part = new HashMap<>();
+            part.put("text", msg.get("content") != null ? msg.get("content") : "");
+            Map<String, Object> block = new HashMap<>();
+            block.put("role", geminiRole);
+            block.put("parts", List.of(part));
+            contents.add(block);
+        }
+        return contents;
+    }
+
     public String getResponse(String aiType, String prompt, List<Map<String, String>> conversationHistory,
                              String model, String geminiApiKey, String openaiApiKey, double temperature) {
         try {
@@ -42,6 +99,221 @@ public class AiService {
             // 예외 발생 시 기본 응답 반환
             return generateChatGPTStyleResponse(prompt, conversationHistory != null ? conversationHistory : new ArrayList<>());
         }
+    }
+
+    private static final int TITLE_TRANSCRIPT_MAX_MESSAGES = 14;
+    private static final int TITLE_TRANSCRIPT_MAX_CHARS = 420;
+    private static final int TITLE_OUTPUT_MAX_CHARS = 32;
+
+    /**
+     * 대화 맥락을 짧은 한국어 제목으로 요약 (ChatGPT 사이드바 스타일).
+     * API 실패 시 첫 사용자 메시지 일부로 대체합니다.
+     */
+    public String suggestCategoryTitleFromConversation(List<Map<String, String>> conversation,
+                                                       String aiType,
+                                                       String model,
+                                                       String geminiApiKey,
+                                                       String openaiApiKey,
+                                                       double temperature) {
+        if (conversation == null || conversation.isEmpty()) {
+            return null;
+        }
+        String transcript = buildTitleTranscript(conversation);
+        if (transcript.isBlank()) {
+            return sanitizeCategoryTitle(fallbackTitleFromFirstUserMessage(conversation));
+        }
+        String userPrompt = "다음은 사용자와 AI의 대화입니다.\n"
+            + "대화의 주제·목적을 한국어로 짧게 요약한 제목을 한 줄로만 출력하세요.\n"
+            + "규칙: 최대 " + TITLE_OUTPUT_MAX_CHARS + "자, 따옴표·따옴·괄호 설명 없이 제목만, 이모지 없음.\n\n"
+            + transcript;
+
+        String raw = null;
+        try {
+            boolean preferOpenAi = aiType != null && (aiType.contains("OpenAI") || aiType.contains("ChatGPT")
+                || aiType.contains("지피티") || aiType.contains("gpt"));
+            if (preferOpenAi) {
+                if (openaiApiKey != null && !openaiApiKey.trim().isEmpty()) {
+                    raw = requestOpenAiTitle(userPrompt, model, openaiApiKey.trim(), Math.min(0.35, temperature));
+                }
+                if ((raw == null || raw.isBlank()) && geminiApiKey != null && !geminiApiKey.trim().isEmpty()) {
+                    raw = requestGeminiTitle(userPrompt, geminiApiKey.trim(), Math.min(0.35, temperature));
+                }
+            } else {
+                if (geminiApiKey != null && !geminiApiKey.trim().isEmpty()) {
+                    raw = requestGeminiTitle(userPrompt, geminiApiKey.trim(), Math.min(0.35, temperature));
+                }
+                if ((raw == null || raw.isBlank()) && openaiApiKey != null && !openaiApiKey.trim().isEmpty()) {
+                    raw = requestOpenAiTitle(userPrompt, model, openaiApiKey.trim(), Math.min(0.35, temperature));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("suggestCategoryTitleFromConversation: " + e.getMessage());
+        }
+
+        String cleaned = sanitizeCategoryTitle(raw);
+        if (cleaned != null) {
+            return cleaned;
+        }
+        return sanitizeCategoryTitle(fallbackTitleFromFirstUserMessage(conversation));
+    }
+
+    private String buildTitleTranscript(List<Map<String, String>> conversation) {
+        StringBuilder sb = new StringBuilder();
+        int from = Math.max(0, conversation.size() - TITLE_TRANSCRIPT_MAX_MESSAGES);
+        for (int i = from; i < conversation.size(); i++) {
+            Map<String, String> m = conversation.get(i);
+            if (m == null) {
+                continue;
+            }
+            String role = m.get("role");
+            String content = m.get("content");
+            if (content == null) {
+                content = "";
+            }
+            content = content.replace("\r\n", "\n").trim();
+            if (content.length() > TITLE_TRANSCRIPT_MAX_CHARS) {
+                content = content.substring(0, TITLE_TRANSCRIPT_MAX_CHARS) + "…";
+            }
+            if ("user".equals(role)) {
+                sb.append("사용자: ").append(content).append("\n");
+            } else if ("assistant".equals(role)) {
+                sb.append("AI: ").append(content).append("\n");
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private String fallbackTitleFromFirstUserMessage(List<Map<String, String>> conversation) {
+        for (Map<String, String> m : conversation) {
+            if (m == null) {
+                continue;
+            }
+            if (!"user".equals(m.get("role"))) {
+                continue;
+            }
+            String c = m.get("content");
+            if (c == null) {
+                continue;
+            }
+            String s = c.replaceAll("\\s+", " ").trim();
+            if (s.isEmpty()) {
+                continue;
+            }
+            if (s.length() > TITLE_OUTPUT_MAX_CHARS) {
+                return s.substring(0, TITLE_OUTPUT_MAX_CHARS - 1) + "…";
+            }
+            return s;
+        }
+        return "새 대화";
+    }
+
+    private String sanitizeCategoryTitle(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.replace('\n', ' ').replace('\r', ' ').trim();
+        t = t.replaceAll("^[\\s\"'「『【\\[\\(]+", "");
+        t = t.replaceAll("[\\s\"'」』】\\]\\)]+$", "");
+        t = t.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        if (t.length() > TITLE_OUTPUT_MAX_CHARS) {
+            t = t.substring(0, TITLE_OUTPUT_MAX_CHARS).trim();
+        }
+        return t;
+    }
+
+    private String requestOpenAiTitle(String userPrompt, String model, String apiKey, double temperature) throws Exception {
+        if (!checkInternet()) {
+            return null;
+        }
+        String m = (model == null || model.trim().isEmpty()) ? "gpt-4o-mini" : model.trim();
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> systemMsg = new HashMap<>();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", "당신은 대화 제목을 짓는 도우미입니다. 지시에 맞게 짧은 한국어 제목만 출력합니다.");
+        messages.add(systemMsg);
+        Map<String, String> userMsg = new HashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userPrompt);
+        messages.add(userMsg);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", m);
+        requestBody.put("messages", messages);
+        requestBody.put("temperature", temperature);
+        requestBody.put("max_tokens", 80);
+
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(15))
+            .build();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+            .header("Authorization", "Bearer " + apiKey)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
+            .timeout(Duration.ofSeconds(20))
+            .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            return null;
+        }
+        JsonNode result = objectMapper.readTree(response.body());
+        if (result.has("choices") && result.get("choices").size() > 0) {
+            return result.get("choices").get(0).get("message").get("content").asText();
+        }
+        return null;
+    }
+
+    private String requestGeminiTitle(String userPrompt, String apiKey, double temperature) throws Exception {
+        if (!checkInternet()) {
+            return null;
+        }
+        String trimmed = apiKey.trim();
+        if (trimmed.length() < 20 || !trimmed.startsWith("AIza")) {
+            return null;
+        }
+        String encodedKey = URLEncoder.encode(trimmed, StandardCharsets.UTF_8);
+        String modelName = "gemini-1.5-flash";
+        String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName
+            + ":generateContent?key=" + encodedKey;
+
+        Map<String, Object> userPart = new HashMap<>();
+        userPart.put("text", userPrompt);
+        Map<String, Object> userContent = new HashMap<>();
+        userContent.put("role", "user");
+        userContent.put("parts", List.of(userPart));
+
+        Map<String, Object> generationConfig = new HashMap<>();
+        generationConfig.put("temperature", temperature);
+        generationConfig.put("maxOutputTokens", 96);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("contents", List.of(userContent));
+        requestBody.put("generationConfig", generationConfig);
+
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(15))
+            .build();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(apiUrl))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
+            .timeout(Duration.ofSeconds(20))
+            .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            return null;
+        }
+        JsonNode result = objectMapper.readTree(response.body());
+        if (result.has("candidates") && result.get("candidates").size() > 0) {
+            JsonNode candidate = result.get("candidates").get(0);
+            if (candidate.has("content") && candidate.get("content").has("parts")) {
+                return candidate.get("content").get("parts").get(0).get("text").asText();
+            }
+        }
+        return null;
     }
 
 
@@ -270,15 +542,9 @@ public class AiService {
             String apiUrl = "https://generativelanguage.googleapis.com/" + apiVersion + "/models/" +
                            modelName + ":generateContent?key=" + encodedApiKey;
 
-            // 대화 기록 구성 - 현재 프롬프트만 사용 (이전 대화 기록 제외)
-            List<Map<String, Object>> contents = new ArrayList<>();
-            // 현재 프롬프트만 사용하여 이전 대화에 대한 답변이 포함되지 않도록 함
-            Map<String, Object> userPart = new HashMap<>();
-            userPart.put("text", prompt);
-            Map<String, Object> userContent = new HashMap<>();
-            userContent.put("role", "user");
-            userContent.put("parts", Arrays.asList(userPart));
-            contents.add(userContent);
+            // 대화 기록 구성 — 세션에 쌓인 최근 맥락을 Gemini에 전달
+            List<Map<String, String>> normalized = normalizeHistoryForApi(conversationHistory, prompt);
+            List<Map<String, Object>> contents = buildGeminiContents(normalized);
 
             Map<String, Object> generationConfig = new HashMap<>();
             generationConfig.put("temperature", temperature);
@@ -560,20 +826,22 @@ public class AiService {
             List<Map<String, String>> messages = new ArrayList<>();
             Map<String, String> systemMsg = new HashMap<>();
             systemMsg.put("role", "system");
-            systemMsg.put("content", "당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 한국어로 답변해주세요.");
+            systemMsg.put("content", "당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 한국어로 답변하고, 이전 사용자 메시지와 당신의 이전 답변을 맥락으로 삼아 일관되게 이어서 대화하세요.");
             messages.add(systemMsg);
 
-            // 현재 프롬프트만 사용 (이전 대화 기록 제외)
-            Map<String, String> userMsg = new HashMap<>();
-            userMsg.put("role", "user");
-            userMsg.put("content", prompt);
-            messages.add(userMsg);
+            List<Map<String, String>> normalized = normalizeHistoryForApi(conversationHistory, prompt);
+            for (Map<String, String> turn : normalized) {
+                Map<String, String> m = new HashMap<>();
+                m.put("role", turn.get("role"));
+                m.put("content", turn.get("content") != null ? turn.get("content") : "");
+                messages.add(m);
+            }
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("model", model.trim());
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
-            requestBody.put("max_tokens", 1000);
+            requestBody.put("max_tokens", 2048);
 
             HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
